@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  APP_NAME: Stahapati
+  APP_NAME: Sthapati
   IOS_BUNDLE_ID: com.stahapatis.app
   APP_SCHEME: com.stahapatis.app
 
@@ -47,7 +47,16 @@ jobs:
             exit 1
           fi
 
-          echo "Startup screen is Loading... (no logo). App icon from logo.png verified."
+          grep -q 'customClass="StahapatiBridgeViewController"' ios/App/App/Base.lproj/Main.storyboard
+          grep -q 'customModule="App"' ios/App/App/Base.lproj/Main.storyboard
+          if grep -q 'customClass="StahapatiBridgeViewController" customModule="Capacitor"' ios/App/App/Base.lproj/Main.storyboard; then
+            echo "Main.storyboard still looks up the WebView host in the Capacitor module" >&2
+            exit 1
+          fi
+
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Sthapati"
+
+          echo "Startup screen is Loading... (no logo). App icon from logo.png verified. App name is Sthapati."
 
       - name: Build iOS app
         run: bash scripts/build-ios-app.sh build
