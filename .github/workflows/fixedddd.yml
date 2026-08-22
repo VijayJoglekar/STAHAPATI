@@ -1,0 +1,91 @@
+name: Build iOS App
+
+on:
+  workflow_dispatch:
+
+env:
+  APP_NAME: Stahapati
+  IOS_BUNDLE_ID: com.stahapatis.app
+  APP_SCHEME: com.stahapatis.app
+
+jobs:
+  build-ios:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Make script executable
+        run: chmod +x scripts/build-ios-app.sh
+
+      - name: Prepare web assets
+        run: |
+          if [ ! -f "logo.png" ]; then
+            echo "ERROR: logo.png not found in root directory!"
+            exit 1
+          fi
+          mkdir -p www
+          cp logo.png www/logo.png
+
+      - name: Setup iOS project
+        run: bash scripts/build-ios-app.sh setup
+
+      - name: Verify branding assets
+        run: |
+          if [ ! -f "logo.png" ]; then
+            echo "ERROR: logo.png not found in root directory!"
+            exit 1
+          fi
+
+          if [ ! -f "www/logo.png" ]; then
+            echo "ERROR: www/logo.png was not copied during setup."
+            exit 1
+          fi
+
+          SPLASH_DIR="ios/App/App/Assets.xcassets/Splash.imageset"
+          if [ ! -f "${SPLASH_DIR}/splash-2732x2732.png" ]; then
+            echo "ERROR: Splash screen was not replaced with logo.png."
+            exit 1
+          fi
+
+          ICON_DIR="ios/App/App/Assets.xcassets/AppIcon.appiconset"
+          if [ ! -f "${ICON_DIR}/icon-1024.png" ]; then
+            echo "ERROR: App icon assets were not generated from logo.png."
+            exit 1
+          fi
+
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Stahapati"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLSchemes:0" ios/App/App/Info.plist | grep -qx "com.stahapatis.app"
+
+          echo "Branding, splash, and OAuth URL scheme verified."
+
+      - name: Build iOS app
+        run: bash scripts/build-ios-app.sh build
+
+      - name: Package iOS app
+        run: |
+          APP_PATH=$(find build/DerivedData -type d -name "App.app" -print -quit)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: App.app was not found."
+            echo "Contents of build directory:"
+            find build -maxdepth 6 -print
+            exit 1
+          fi
+
+          echo "Found app at: $APP_PATH"
+          mkdir -p artifacts
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "artifacts/App.zip"
+
+      - name: Upload iOS app
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-build
+          path: artifacts/App.zip
+          if-no-files-found: error

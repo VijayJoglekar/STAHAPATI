@@ -1,0 +1,142 @@
+
+class StahapatiBridgeViewController: CAPBridgeViewController {
+    /// Unsticks the live site header (`header.sticky.top-0`) so it scrolls with the page.
+    private let scrollFixJavaScript = """
+    (function () {
+      if (window.__stahapatiHeaderFix) {
+        return;
+      }
+      window.__stahapatiHeaderFix = true;
+
+      var STYLE_ID = 'stahapati-header-scroll-fix';
+      var CSS = [
+        'header.sticky,',
+        'header[class*="sticky"],',
+        'header.top-0,',
+        '.sticky.top-0.z-50 {',
+        '  position: relative !important;',
+        '  top: auto !important;',
+        '}'
+      ].join('');
+
+      function ensureStyle() {
+        var root = document.head || document.documentElement;
+        if (!root) {
+          return;
+        }
+        var style = document.getElementById(STYLE_ID);
+        if (!style) {
+          style = document.createElement('style');
+          style.id = STYLE_ID;
+          root.appendChild(style);
+        }
+        if (style.textContent !== CSS) {
+          style.textContent = CSS;
+        }
+      }
+
+      function unstick(el) {
+        if (!el || !el.style) {
+          return;
+        }
+        el.style.setProperty('position', 'relative', 'important');
+        el.style.setProperty('top', 'auto', 'important');
+      }
+
+      function fixHeaders() {
+        ensureStyle();
+
+        var headers = document.querySelectorAll('header, [role="banner"]');
+        for (var i = 0; i < headers.length; i++) {
+          unstick(headers[i]);
+        }
+
+        var stickyBars = document.querySelectorAll('.sticky.top-0, .sticky[class*="top-0"]');
+        for (var j = 0; j < stickyBars.length; j++) {
+          var el = stickyBars[j];
+          var rect = el.getBoundingClientRect();
+          if (rect.height > 0 && rect.height <= 140) {
+            unstick(el);
+          }
+        }
+      }
+
+      fixHeaders();
+      document.addEventListener('DOMContentLoaded', fixHeaders);
+      window.addEventListener('load', fixHeaders);
+      window.addEventListener('pageshow', fixHeaders);
+
+      try {
+        new MutationObserver(function () {
+          fixHeaders();
+        }).observe(document.documentElement, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['class']
+        });
+      } catch (e) {}
+
+      var runs = 0;
+      var timer = window.setInterval(function () {
+        fixHeaders();
+        runs += 1;
+        if (runs >= 80) {
+          window.clearInterval(timer);
+        }
+      }, 500);
+    })();
+    """
+
+    /// Inject before the WebView is created so the fix runs on the first remote page load.
+    override open func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
+        let config = super.webViewConfiguration(for: instanceConfiguration)
+
+        let startScript = WKUserScript(
+            source: scrollFixJavaScript,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        let endScript = WKUserScript(
+            source: scrollFixJavaScript,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+
+        config.userContentController.addUserScript(startScript)
+        config.userContentController.addUserScript(endScript)
+        return config
+    }
+
+    override open func capacitorDidLoad() {
+        super.capacitorDidLoad()
+        configureWebViewAppearance()
+        applyScrollFixNow()
+    }
+
+    override open func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        applyScrollFixNow()
+    }
+
+    private func configureWebViewAppearance() {
+        view.backgroundColor = UIColor.white
+
+        guard let webView = webView else { return }
+
+        webView.isOpaque = true
+        webView.backgroundColor = UIColor.white
+        webView.scrollView.backgroundColor = UIColor.white
+        webView.scrollView.contentInsetAdjustmentBehavior = .automatic
+        webView.scrollView.clipsToBounds = true
+        webView.scrollView.bounces = true
+
+        if #available(iOS 13.0, *) {
+            webView.scrollView.automaticallyAdjustsScrollIndicatorInsets = true
+        }
+    }
+
+    private func applyScrollFixNow() {
+        webView?.evaluateJavaScript(scrollFixJavaScript, completionHandler: nil)
+    }
+}

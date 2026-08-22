@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>Stahapati</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #ffffff;
+        color: #222;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+<<<<<<< ours
+        text-align: center;
+        padding: 24px;
+      }
+      .logo {
+        width: 96px;
+        height: 96px;
+        border-radius: 22px;
+        object-fit: contain;
+        margin-bottom: 16px;
+      }
+      button {
+        margin-top: 16px;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 8px;
+        background: #e52d27;
+        color: #fff;
+        font-size: 16px;
+=======
+>>>>>>> theirs
+      }
+    </style>
+  </head>
+  <body>
+<<<<<<< ours
+    <div>
+      <img src="logo.png" class="logo" alt="Stahapati" />
+      <p id="message">Loading Stahapati...</p>
+      <button id="retryButton" type="button" hidden>Retry</button>
+    </div>
+=======
+    <p>Loading...</p>
+>>>>>>> theirs
+    <script>
+      (function () {
+        var SITE_URL = 'https://sthapatiapp.com';
+        var message = document.getElementById('message');
+        var retryButton = document.getElementById('retryButton');
+
+        function goToSite() {
+          message.textContent = 'Loading Stahapati...';
+          retryButton.hidden = true;
+          window.location.replace(SITE_URL);
+        }
+
+        retryButton.addEventListener('click', goToSite);
+
+        if (/sthapatiapp\.com/i.test(window.location.hostname)) {
+          return;
+        }
+
+        message.textContent = 'Connecting to Stahapati...';
+        setTimeout(function () {
+          goToSite();
+        }, 300);
+
+        setTimeout(function () {
+          if (!/sthapatiapp\.com/i.test(window.location.hostname)) {
+            message.textContent =
+              'Unable to load Stahapati. Check your internet connection and try again.';
+            retryButton.hidden = false;
+          }
+        }, 8000);
+      })();
+    </script>
+  </body>
+</html>

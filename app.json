@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Stahapati",
+    "slug": "stahapati",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./logo.png",
+    "scheme": "com.stahapatis.app",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stahapatis.app",
+      "buildNumber": "1.0.0",
+      "config": {
+        "googleSignIn": {
+          "reservedClientId": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+        }
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
+    },
+    "extra": {
+      "googleOAuth": {
+        "iosClientId": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+        "webClientId": "YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com"
+      }
+    }
+  }
+}

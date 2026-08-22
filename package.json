@@ -1,0 +1,25 @@
+{
+  "name": "sthapati-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor wrapper for the live Stahapati website (iOS App Store build)",
+  "scripts": {
+    "cap:sync": "npx cap sync ios",
+    "cap:open": "npx cap open ios",
+    "ios:setup": "bash scripts/build-ios-app.sh setup",
+    "ios:open": "bash scripts/build-ios-app.sh open",
+    "ios:archive": "bash scripts/build-ios-app.sh archive"
+  },
+  "dependencies": {
+    "@capacitor/app": "6.0.3",
+    "@capacitor/browser": "6.0.6",
+    "@capacitor/core": "6.2.1",
+    "@capacitor/ios": "6.2.1",
+    "@capacitor/splash-screen": "6.0.4",
+    "@capacitor/status-bar": "6.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.2.1",
+    "typescript": "5.8.2"
+  }
+}

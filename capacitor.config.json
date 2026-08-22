@@ -1,0 +1,46 @@
+{
+  "appId": "com.stahapatis.app",
+  "appName": "Stahapati",
+  "webDir": "www",
+  "server": {
+    "url": "https://sthapatiapp.com",
+    "cleartext": false,
+    "errorPath": "index.html",
+    "allowNavigation": [
+      "sthapatiapp.com",
+      "*.sthapatiapp.com",
+      "accounts.google.com",
+      "*.google.com",
+      "google.com",
+      "*.googleusercontent.com"
+    ]
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "allowsLinkPreview": false,
+    "scrollEnabled": true,
+    "limitsNavigationsToAppBoundDomains": false,
+    "backgroundColor": "#ffffff"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#ffffff",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#ffffff"
+    },
+    "GoogleAuth": {
+      "iosClientId": "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com",
+      "iosServerClientId": "YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com",
+      "scopes": ["profile", "email"],
+      "serverClientId": "YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com"
+    },
+    "CapacitorCookies": {
+      "enabled": true
+    }
+  }
+}
