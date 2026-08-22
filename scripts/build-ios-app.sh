@@ -114,11 +114,7 @@ write_capacitor_config() {
   },
   "plugins": {
     "SplashScreen": {
-<<<<<<< ours
-      "launchShowDuration": 1500,
-=======
       "launchShowDuration": 15000,
->>>>>>> theirs
       "launchAutoHide": true,
       "backgroundColor": "#ffffff",
       "showSpinner": false
@@ -173,8 +169,6 @@ sync_ios() {
     cd "${IOS_DIR}/App"
     pod install
   fi
-
-  patch_startup_screen
 }
 
 patch_startup_screen() {
@@ -193,7 +187,7 @@ setup_splash_assets() {
   }
   [[ -d "${assets}" ]] || return 0
 
-  log "Replacing Capacitor default splash with Stahapati logo..."
+  log "Leaving splash images blank; launch screen uses Loading... text, not the logo."
   mkdir -p "${splash}"
 
   sips -z 2732 2732 "${logo}" --out "${splash}/splash-2732x2732.png" >/dev/null 2>&1 || \
@@ -456,9 +450,9 @@ run_setup() {
   add_ios_platform
   sync_ios
   copy_web_assets
-  setup_splash_assets
   setup_app_icon_assets
   patch_info_plist
+  patch_startup_screen
   patch_app_delegate
   patch_bridge_viewcontroller
   log "Setup complete."

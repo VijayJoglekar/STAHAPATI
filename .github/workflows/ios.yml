@@ -1,6 +1,10 @@
-name: Build iOS App
+name: iOS starter workflow
 
 on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
   workflow_dispatch:
 
 env:
@@ -27,14 +31,8 @@ jobs:
       - name: Setup iOS project
         run: bash scripts/build-ios-app.sh setup
 
-      - name: Verify branding and startup screen
+      - name: Verify startup screen has no logo
         run: |
-          ICON_DIR="ios/App/App/Assets.xcassets/AppIcon.appiconset"
-          if [ ! -f "${ICON_DIR}/icon-1024.png" ]; then
-            echo "ERROR: App icon assets were not generated from logo.png."
-            exit 1
-          fi
-
           grep -q 'Loading...' ios/App/App/Base.lproj/LaunchScreen.storyboard
           if grep -q 'image="Splash"' ios/App/App/Base.lproj/LaunchScreen.storyboard; then
             echo "LaunchScreen still references the Splash logo image" >&2
@@ -42,6 +40,12 @@ jobs:
           fi
           grep -q 'hideSplashWhenWebViewIsReady' ios/App/App/AppDelegate.swift
           grep -q 'handleStahapatiOAuthReturn' ios/App/App/AppDelegate.swift
+
+          ICON_DIR="ios/App/App/Assets.xcassets/AppIcon.appiconset"
+          if [ ! -f "${ICON_DIR}/icon-1024.png" ]; then
+            echo "ERROR: App icon assets were not generated from logo.png."
+            exit 1
+          fi
 
           /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Stahapati"
           /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLSchemes:0" ios/App/App/Info.plist | grep -qx "com.stahapatis.app"

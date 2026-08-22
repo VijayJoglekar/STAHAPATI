@@ -16,16 +16,8 @@
         display: grid;
         place-items: center;
         min-height: 100vh;
-<<<<<<< ours
         text-align: center;
         padding: 24px;
-      }
-      .logo {
-        width: 96px;
-        height: 96px;
-        border-radius: 22px;
-        object-fit: contain;
-        margin-bottom: 16px;
       }
       button {
         margin-top: 16px;
@@ -35,21 +27,14 @@
         background: #e52d27;
         color: #fff;
         font-size: 16px;
-=======
->>>>>>> theirs
       }
     </style>
   </head>
   <body>
-<<<<<<< ours
     <div>
-      <img src="logo.png" class="logo" alt="Stahapati" />
-      <p id="message">Loading Stahapati...</p>
+      <p id="message">Loading...</p>
       <button id="retryButton" type="button" hidden>Retry</button>
     </div>
-=======
-    <p>Loading...</p>
->>>>>>> theirs
     <script>
       (function () {
         var SITE_URL = 'https://sthapatiapp.com';
@@ -57,7 +42,7 @@
         var retryButton = document.getElementById('retryButton');
 
         function goToSite() {
-          message.textContent = 'Loading Stahapati...';
+          message.textContent = 'Loading...';
           retryButton.hidden = true;
           window.location.replace(SITE_URL);
         }
@@ -68,7 +53,7 @@
           return;
         }
 
-        message.textContent = 'Connecting to Stahapati...';
+        message.textContent = 'Loading...';
         setTimeout(function () {
           goToSite();
         }, 300);
