@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  APP_NAME: Stahapati
+  APP_NAME: Sthapati
   IOS_BUNDLE_ID: com.stahapatis.app
   APP_SCHEME: com.stahapatis.app
 
@@ -60,7 +60,7 @@ jobs:
             exit 1
           fi
 
-          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Stahapati"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Sthapati"
           /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLSchemes:0" ios/App/App/Info.plist | grep -qx "com.stahapatis.app"
 
           echo "Branding, splash, and OAuth URL scheme verified."

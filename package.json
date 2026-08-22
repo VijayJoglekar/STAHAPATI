@@ -2,7 +2,7 @@
   "name": "sthapati-mobile",
   "version": "1.0.0",
   "private": true,
-  "description": "Capacitor wrapper for the live Stahapati website (iOS App Store build)",
+  "description": "Capacitor wrapper for the live Sthapati website (iOS App Store build)",
   "scripts": {
     "cap:sync": "npx cap sync ios",
     "cap:open": "npx cap open ios",

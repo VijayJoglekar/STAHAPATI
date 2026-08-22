@@ -38,20 +38,31 @@ def patch_app_delegate(app_delegate: Path, snippet: Path) -> None:
 
 def patch_storyboard(storyboard: Path) -> None:
     content = storyboard.read_text(encoding="utf-8")
-    if MARKER in content:
-        return
+    original = content
 
-    updated = content.replace(
+    content = content.replace(
         'customClass="CAPBridgeViewController"',
         f'customClass="{MARKER}"',
     )
+    # The subclass is compiled into the App target, not the Capacitor module.
+    # Leaving customModule="Capacitor" makes iOS fail to instantiate the WebView
+    # host and shows a black screen after the launch screen.
+    content = content.replace(
+        f'customClass="{MARKER}" customModule="Capacitor"',
+        f'customClass="{MARKER}" customModule="App" customModuleProvider="target"',
+    )
 
-    if updated == content:
+    if f'customClass="{MARKER}"' not in content:
         raise SystemExit(
             "Main.storyboard format changed; expected CAPBridgeViewController custom class."
         )
+    if f'customClass="{MARKER}" customModule="Capacitor"' in content:
+        raise SystemExit(
+            "Main.storyboard still points StahapatiBridgeViewController at the Capacitor module."
+        )
 
-    storyboard.write_text(updated, encoding="utf-8")
+    if content != original:
+        storyboard.write_text(content, encoding="utf-8")
 
 
 def main() -> None:

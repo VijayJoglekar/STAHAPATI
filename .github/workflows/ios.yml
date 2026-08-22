@@ -1,14 +1,14 @@
-name: iOS starter workflow
+# Sthapati Capacitor iOS build.
+# The Xcode project is generated during this job (ios/ is not committed).
+name: Build Sthapati iOS App
 
 on:
   push:
     branches: ["main"]
-  pull_request:
-    branches: ["main"]
   workflow_dispatch:
 
 env:
-  APP_NAME: Stahapati
+  APP_NAME: Sthapati
   IOS_BUNDLE_ID: com.stahapatis.app
   APP_SCHEME: com.stahapatis.app
 
@@ -28,18 +28,18 @@ jobs:
       - name: Make script executable
         run: chmod +x scripts/build-ios-app.sh
 
-      - name: Setup iOS project
+      - name: Setup Capacitor iOS project
         run: bash scripts/build-ios-app.sh setup
 
-      - name: Verify startup screen has no logo
+      - name: Verify Loading... startup screen and app icon
         run: |
+          test -d ios/App
           grep -q 'Loading...' ios/App/App/Base.lproj/LaunchScreen.storyboard
           if grep -q 'image="Splash"' ios/App/App/Base.lproj/LaunchScreen.storyboard; then
             echo "LaunchScreen still references the Splash logo image" >&2
             exit 1
           fi
           grep -q 'hideSplashWhenWebViewIsReady' ios/App/App/AppDelegate.swift
-          grep -q 'handleStahapatiOAuthReturn' ios/App/App/AppDelegate.swift
 
           ICON_DIR="ios/App/App/Assets.xcassets/AppIcon.appiconset"
           if [ ! -f "${ICON_DIR}/icon-1024.png" ]; then
@@ -47,15 +47,21 @@ jobs:
             exit 1
           fi
 
-          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Stahapati"
-          /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLSchemes:0" ios/App/App/Info.plist | grep -qx "com.stahapatis.app"
+          grep -q 'customClass="StahapatiBridgeViewController"' ios/App/App/Base.lproj/Main.storyboard
+          grep -q 'customModule="App"' ios/App/App/Base.lproj/Main.storyboard
+          if grep -q 'customClass="StahapatiBridgeViewController" customModule="Capacitor"' ios/App/App/Base.lproj/Main.storyboard; then
+            echo "Main.storyboard still looks up the WebView host in the Capacitor module" >&2
+            exit 1
+          fi
 
-          echo "Startup screen is Loading... (no logo). App icon and OAuth URL scheme verified."
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Sthapati"
+
+          echo "Startup screen is Loading... (no logo). App icon from logo.png verified. App name is Sthapati."
 
       - name: Build iOS app
         run: bash scripts/build-ios-app.sh build
 
-      - name: Package iOS app
+      - name: Package App.zip
         run: |
           APP_PATH=$(find build/DerivedData -type d -name "App.app" -print -quit)
 
@@ -70,9 +76,9 @@ jobs:
           mkdir -p artifacts
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "artifacts/App.zip"
 
-      - name: Upload iOS app
+      - name: Upload App.zip
         uses: actions/upload-artifact@v4
         with:
-          name: ios-app-build
+          name: App.zip
           path: artifacts/App.zip
           if-no-files-found: error

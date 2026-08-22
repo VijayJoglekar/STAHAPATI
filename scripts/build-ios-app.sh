@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build the Stahapati iOS app on macOS (Capacitor wrapper for https://sthapatiapp.com)
+# Build the Sthapati iOS app on macOS (Capacitor wrapper for https://sthapatiapp.com)
 #
 # Run on Mac only. Requires Xcode + Apple Developer account for App Store upload.
 #
@@ -22,7 +22,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IOS_DIR="${ROOT_DIR}/ios"
 APP_SITE_URL="${APP_SITE_URL:-https://sthapatiapp.com}"
 APP_ID="${IOS_BUNDLE_ID:-com.stahapatis.app}"
-APP_NAME="${APP_NAME:-Stahapati}"
+APP_NAME="${APP_NAME:-Sthapati}"
 APP_SCHEME="${APP_SCHEME:-com.stahapatis.app}"
 IOS_SCHEME="${IOS_SCHEME:-App}"
 ARCHIVE_PATH="${ROOT_DIR}/build/Stahapati.xcarchive"
@@ -312,9 +312,9 @@ patch_info_plist() {
     /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:1:CFBundleURLSchemes:0 string ${reversed_client_id}" "${plist}"
   fi
 
-  plist_set_or_add "${plist}" "NSCameraUsageDescription" "string" "Stahapati needs camera access to upload profile and project photos."
-  plist_set_or_add "${plist}" "NSPhotoLibraryUsageDescription" "string" "Stahapati needs photo library access to upload images."
-  plist_set_or_add "${plist}" "NSPhotoLibraryAddUsageDescription" "string" "Stahapati needs permission to save photos."
+  plist_set_or_add "${plist}" "NSCameraUsageDescription" "string" "Sthapati needs camera access to upload profile and project photos."
+  plist_set_or_add "${plist}" "NSPhotoLibraryUsageDescription" "string" "Sthapati needs photo library access to upload images."
+  plist_set_or_add "${plist}" "NSPhotoLibraryAddUsageDescription" "string" "Sthapati needs permission to save photos."
 }
 
 patch_app_delegate() {

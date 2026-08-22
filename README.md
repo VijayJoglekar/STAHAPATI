@@ -1,4 +1,4 @@
-# Stahapati iOS App (Capacitor)
+# Sthapati iOS App (Capacitor)
 
 Wraps the live website **https://sthapatiapp.com** as a native iOS app for the App Store.
 
@@ -54,7 +54,7 @@ Output: `mobile/build/export/*.ipa`
 |----------|---------|-------------|
 | `APP_SITE_URL` | `https://sthapatiapp.com` | Live site URL loaded in the app |
 | `IOS_BUNDLE_ID` | `com.stahapatis.app` | App Store bundle identifier |
-| `APP_NAME` | `Stahapati` | App name on home screen |
+| `APP_NAME` | `Sthapati` | App name on home screen |
 | `APP_SCHEME` | `com.stahapatis.app` | OAuth deep link scheme |
 | `IOS_TEAM_ID` | — | Required for CLI archive |
 
@@ -70,7 +70,7 @@ Before App Store submission, replace icons in:
 
 `ios/App/App/Assets.xcassets/AppIcon.appiconset/`
 
-Use a 1024×1024 PNG of the Stahapati logo. The GitHub Actions workflow and `scripts/build-ios-app.sh setup` generate icons and splash assets automatically from `logo.png`.
+Use a 1024×1024 PNG of the Sthapati logo. The GitHub Actions workflow and `scripts/build-ios-app.sh setup` generate icons and splash assets automatically from `logo.png`.
 
 ## Google Sign-In (iOS)
 

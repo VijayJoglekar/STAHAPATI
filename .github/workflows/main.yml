@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  APP_NAME: Stahapati
+  APP_NAME: Sthapati
   IOS_BUNDLE_ID: com.stahapatis.app
   APP_SCHEME: com.stahapatis.app
 
@@ -43,7 +43,7 @@ jobs:
           grep -q 'hideSplashWhenWebViewIsReady' ios/App/App/AppDelegate.swift
           grep -q 'handleStahapatiOAuthReturn' ios/App/App/AppDelegate.swift
 
-          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Stahapati"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Sthapati"
           /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLSchemes:0" ios/App/App/Info.plist | grep -qx "com.stahapatis.app"
 
           echo "Startup screen is Loading... (no logo). App icon and OAuth URL scheme verified."
