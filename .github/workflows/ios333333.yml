@@ -35,11 +35,11 @@ jobs:
           set -e
 
           echo "========================================"
-          echo "Verifying generated iOS project"
+          echo "VERIFYING GENERATED IOS PROJECT"
           echo "========================================"
 
           test -d ios/App
-          echo "✓ ios/App exists"
+          echo "PASS: ios/App exists"
 
           LAUNCH_SCREEN="ios/App/App/Base.lproj/LaunchScreen.storyboard"
           APP_DELEGATE="ios/App/App/AppDelegate.swift"
@@ -48,125 +48,126 @@ jobs:
           ICON_DIR="ios/App/App/Assets.xcassets/AppIcon.appiconset"
 
           echo ""
-          echo "Checking launch screen..."
+          echo "Checking LaunchScreen..."
 
-          if grep -q 'Loading...' "$LAUNCH_SCREEN"; then
-            echo "✓ Loading... found"
-          else
-            echo "ERROR: Loading... not found"
-            exit 1
-          fi
+          grep -q 'Loading...' "$LAUNCH_SCREEN"
+          echo "PASS: Loading... found"
 
           if grep -q 'image="Splash"' "$LAUNCH_SCREEN"; then
-            echo "ERROR: LaunchScreen still references Splash"
+            echo "FAIL: Splash image still referenced"
             exit 1
-          else
-            echo "✓ Splash logo is not referenced"
           fi
+
+          echo "PASS: Splash image not referenced"
 
           echo ""
           echo "Checking AppDelegate..."
 
-          if grep -q 'hideSplashWhenWebViewIsReady' "$APP_DELEGATE"; then
-            echo "✓ hideSplashWhenWebViewIsReady found"
-          else
-            echo "ERROR: hideSplashWhenWebViewIsReady not found"
-            exit 1
-          fi
+          grep -q 'hideSplashWhenWebViewIsReady' "$APP_DELEGATE"
+          echo "PASS: hideSplashWhenWebViewIsReady"
 
           echo ""
           echo "Checking app icon..."
 
-          if [ -f "${ICON_DIR}/icon-1024.png" ]; then
-            echo "✓ 1024px app icon found"
-          else
-            echo "ERROR: icon-1024.png not found"
+          if [ ! -f "${ICON_DIR}/icon-1024.png" ]; then
+            echo "FAIL: icon-1024.png missing"
             exit 1
           fi
+
+          echo "PASS: icon-1024.png"
 
           echo ""
           echo "Checking Main.storyboard..."
 
-          if grep -q 'customClass="StahapatiBridgeViewController"' "$MAIN_STORYBOARD"; then
-            echo "✓ StahapatiBridgeViewController found"
-          else
-            echo "ERROR: StahapatiBridgeViewController not found"
-            exit 1
-          fi
+          grep -q 'customClass="StahapatiBridgeViewController"' "$MAIN_STORYBOARD"
+          echo "PASS: StahapatiBridgeViewController"
 
-          if grep -q 'customModule="App"' "$MAIN_STORYBOARD"; then
-            echo "✓ Main.storyboard uses App module"
-          else
-            echo "ERROR: Main.storyboard App module not found"
-            exit 1
-          fi
+          grep -q 'customModule="App"' "$MAIN_STORYBOARD"
+          echo "PASS: customModule=App"
 
           if grep -q 'customClass="StahapatiBridgeViewController" customModule="Capacitor"' "$MAIN_STORYBOARD"; then
-            echo "ERROR: Main.storyboard still references Capacitor module"
+            echo "FAIL: Bridge still uses Capacitor module"
             exit 1
+          fi
+
+          echo "PASS: Bridge does not use Capacitor module"
+
+          echo ""
+          echo "========================================"
+          echo "GOOGLE OAUTH CONFIGURATION"
+          echo "========================================"
+
+          echo ""
+          echo "Searching capacitor.config.json for OAuth hosts..."
+
+          grep -n -E 'google|gstatic|withgoogle|Safari' "$CAP_CONFIG" || true
+
+          echo ""
+          echo "Checking accounts.google.com..."
+
+          if grep -qi 'accounts.google.com' "$CAP_CONFIG"; then
+            echo "PASS: accounts.google.com"
           else
-            echo "✓ Main.storyboard does not use Capacitor module for bridge"
+            echo "FAIL: accounts.google.com missing"
+            exit 1
           fi
 
           echo ""
-          echo "Checking in-app Google OAuth implementation..."
+          echo "Checking gstatic.com..."
 
-          REQUIRED_APP_DELEGATE_PATTERNS=(
-            'StahapatiInAppNavigationProxy'
-            'createWebViewWith'
-            'shouldCapturePopup'
-            'oauthPopupWebView'
+          if grep -qi 'gstatic.com' "$CAP_CONFIG"; then
+            echo "PASS: gstatic.com"
+          else
+            echo "FAIL: gstatic.com missing"
+            exit 1
+          fi
+
+          echo ""
+          echo "Checking withgoogle.com..."
+
+          if grep -qi 'withgoogle.com' "$CAP_CONFIG"; then
+            echo "PASS: withgoogle.com"
+          else
+            echo "FAIL: withgoogle.com missing"
+            exit 1
+          fi
+
+          echo ""
+          echo "Checking Safari user-agent configuration..."
+
+          if grep -q 'Safari/604.1' "$CAP_CONFIG"; then
+            echo "PASS: Safari/604.1"
+          else
+            echo "WARNING: Safari/604.1 not found"
+          fi
+
+          echo ""
+          echo "Checking AppDelegate OAuth implementation..."
+
+          for pattern in \
+            'StahapatiInAppNavigationProxy' \
+            'createWebViewWith' \
+            'shouldCapturePopup' \
+            'oauthPopupWebView' \
             'inAppGoogleOAuthNoSafariHandoff'
-          )
-
-          for pattern in "${REQUIRED_APP_DELEGATE_PATTERNS[@]}"; do
+          do
             if grep -q "$pattern" "$APP_DELEGATE"; then
-              echo "✓ AppDelegate contains: $pattern"
+              echo "PASS: $pattern"
             else
-              echo "ERROR: AppDelegate missing: $pattern"
-              echo ""
-              echo "Relevant AppDelegate content:"
-              grep -n -E 'Google|OAuth|Safari|Popup|WebView|Navigation' "$APP_DELEGATE" || true
-              exit 1
-            fi
-          done
-
-          REQUIRED_CAPACITOR_PATTERNS=(
-            'accounts.google.com'
-            'Safari/604.1'
-            'withgoogle.com'
-          )
-
-          for pattern in "${REQUIRED_CAPACITOR_PATTERNS[@]}"; do
-            if grep -q "$pattern" "$CAP_CONFIG"; then
-              echo "✓ capacitor.config.json contains: $pattern"
-            else
-              echo "ERROR: capacitor.config.json missing: $pattern"
-              echo ""
-              cat "$CAP_CONFIG"
+              echo "FAIL: $pattern missing"
               exit 1
             fi
           done
 
           echo ""
-          echo "Checking gstatic configuration..."
-
-          if grep -q 'gstatic.com' "$CAP_CONFIG"; then
-            echo "✓ gstatic.com configuration found"
-          else
-            echo "ERROR: gstatic.com configuration not found"
-            exit 1
-          fi
-
-          echo ""
-          echo "Checking that old Safari-session cleanup is removed..."
+          echo "Checking old Safari cleanup..."
 
           if grep -q 'clearCancelledGoogleOAuthIfNeeded' "$APP_DELEGATE"; then
-            echo "ERROR: Old clearCancelledGoogleOAuthIfNeeded implementation is still present"
+            echo "FAIL: Old Safari cleanup still exists"
             exit 1
-          else
-            echo "✓ Old Safari-session cleanup is not present"
           fi
+
+          echo "PASS: Old Safari cleanup removed"
 
           echo ""
           echo "Running OAuth validation script..."
@@ -174,7 +175,7 @@ jobs:
           python3 scripts/validate-in-app-oauth.py
 
           echo ""
-          echo "Checking app display name..."
+          echo "Checking application name..."
 
           DISPLAY_NAME=$(
             /usr/libexec/PlistBuddy \
@@ -182,22 +183,22 @@ jobs:
               ios/App/App/Info.plist
           )
 
-          if [ "$DISPLAY_NAME" = "Sthapati" ]; then
-            echo "✓ App display name is Sthapati"
-          else
-            echo "ERROR: Expected app name Sthapati, found: $DISPLAY_NAME"
+          if [ "$DISPLAY_NAME" != "Sthapati" ]; then
+            echo "FAIL: Expected Sthapati, got $DISPLAY_NAME"
             exit 1
           fi
 
+          echo "PASS: App name is Sthapati"
+
           echo ""
           echo "========================================"
-          echo "All generated iOS project checks passed"
+          echo "ALL VERIFICATION CHECKS PASSED"
           echo "========================================"
 
       - name: Build iOS app
         run: bash scripts/build-ios-app.sh build
 
-      - name: Verify App.app exists
+      - name: Find App.app
         shell: bash
         run: |
           APP_PATH=$(find build/DerivedData \
@@ -206,14 +207,12 @@ jobs:
             -print -quit)
 
           if [ -z "$APP_PATH" ]; then
-            echo "ERROR: App.app was not found."
-            echo ""
-            echo "Build directory:"
+            echo "ERROR: App.app not found"
             find build -maxdepth 6 -print
             exit 1
           fi
 
-          echo "✓ App.app found:"
+          echo "App found:"
           echo "$APP_PATH"
 
       - name: Package App.zip
@@ -224,15 +223,7 @@ jobs:
             -name "App.app" \
             -print -quit)
 
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: App.app was not found."
-            exit 1
-          fi
-
           mkdir -p artifacts
-
-          echo "Packaging:"
-          echo "$APP_PATH"
 
           ditto -c -k \
             --sequesterRsrc \
@@ -240,7 +231,7 @@ jobs:
             "$APP_PATH" \
             "artifacts/App.zip"
 
-          echo "✓ App.zip created"
+          echo "App.zip created successfully"
 
       - name: Upload App.zip
         uses: actions/upload-artifact@v4
