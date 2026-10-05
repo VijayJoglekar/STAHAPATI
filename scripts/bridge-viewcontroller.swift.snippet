@@ -3,6 +3,53 @@ class StahapatiBridgeViewController: CAPBridgeViewController {
     /// Unsticks the live site header (`header.sticky.top-0`) so it scrolls with the page.
     private let scrollFixJavaScript = """
     (function () {
+      if (!window.__stahapatiGoogleOAuthTracking) {
+        window.__stahapatiGoogleOAuthTracking = true;
+
+        function isGoogleOAuthUrl(value) {
+          try {
+            var url = new URL(value, window.location.href);
+            return /(^|\\.)google\\.com$/i.test(url.hostname) &&
+              /oauth|signin/i.test(url.pathname);
+          } catch (error) {
+            return false;
+          }
+        }
+
+        function markGoogleOAuthPending() {
+          try {
+            window.sessionStorage.setItem('__stahapatiGoogleOAuthPending', '1');
+          } catch (error) {
+            console.error('Unable to mark pending Google OAuth attempt.', error);
+          }
+        }
+
+        document.addEventListener('click', function (event) {
+          var target = event.target;
+          if (!target || !target.closest) {
+            return;
+          }
+
+          var control = target.closest('a, button, [role="button"]') || target;
+          var label = [
+            control.innerText || '',
+            control.getAttribute('aria-label') || '',
+            control.getAttribute('title') || ''
+          ].join(' ').toLowerCase();
+          if (label.indexOf('google') !== -1 || isGoogleOAuthUrl(control.href)) {
+            markGoogleOAuthPending();
+          }
+        }, true);
+
+        var originalWindowOpen = window.open;
+        window.open = function (url) {
+          if (isGoogleOAuthUrl(url)) {
+            markGoogleOAuthPending();
+          }
+          return originalWindowOpen.apply(this, arguments);
+        };
+      }
+
       if (window.__stahapatiHeaderFix) {
         return;
       }

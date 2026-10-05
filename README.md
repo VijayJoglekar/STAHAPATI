@@ -81,9 +81,9 @@ Expected flow:
 
 `com.stahapatis.app://auth-success?token=...`
 
-4. iOS reopens the app and loads the authenticated session.
+4. iOS accepts only a callback containing a non-empty `token` and no OAuth error, then loads the existing website auth route so the website can continue its OTP verification flow.
 
-The iOS build registers the `com.stahapatis.app` URL scheme and patches `AppDelegate` to route that callback back into the app WebView. If sign-in still stops in Safari, add the redirect above on the website OAuth callback page.
+The iOS build registers the `com.stahapatis.app` URL scheme and patches `AppDelegate` to route that callback back into the app WebView. Safari and the app WebView do not share their authenticated session, so the token callback is the handoff. An explicit OAuth error, or returning to the app after starting Google sign-in without a callback, clears only the Sthapati WebView's cookies and browser storage before reloading the site. This prevents a cached Google profile from being treated as a completed signup. If sign-in still stops in Safari, add the redirect above on the website OAuth callback page.
 
 ## Notes
 
