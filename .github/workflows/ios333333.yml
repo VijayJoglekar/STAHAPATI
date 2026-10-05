@@ -1,5 +1,3 @@
-# Sthapati Capacitor iOS build.
-# The Xcode project is generated during this job (ios/ is not committed).
 name: Build Sthapati iOS App
 
 on:
@@ -14,7 +12,7 @@ env:
 
 jobs:
   build-ios:
-    runs-on: macos-15
+    runs-on: macos-14
 
     steps:
       - name: Checkout repository
@@ -25,71 +23,224 @@ jobs:
         with:
           node-version: 22
 
-      - name: Make script executable
+      - name: Make build script executable
         run: chmod +x scripts/build-ios-app.sh
 
       - name: Setup Capacitor iOS project
         run: bash scripts/build-ios-app.sh setup
 
-      - name: Verify Loading... startup screen and app icon
+      - name: Verify generated iOS project
+        shell: bash
         run: |
+          set -e
+
+          echo "========================================"
+          echo "Verifying generated iOS project"
+          echo "========================================"
+
           test -d ios/App
-          grep -q 'Loading...' ios/App/App/Base.lproj/LaunchScreen.storyboard
-          if grep -q 'image="Splash"' ios/App/App/Base.lproj/LaunchScreen.storyboard; then
-            echo "LaunchScreen still references the Splash logo image" >&2
-            exit 1
-          fi
-          grep -q 'hideSplashWhenWebViewIsReady' ios/App/App/AppDelegate.swift
+          echo "✓ ios/App exists"
 
+          LAUNCH_SCREEN="ios/App/App/Base.lproj/LaunchScreen.storyboard"
+          APP_DELEGATE="ios/App/App/AppDelegate.swift"
+          MAIN_STORYBOARD="ios/App/App/Base.lproj/Main.storyboard"
+          CAP_CONFIG="ios/App/App/capacitor.config.json"
           ICON_DIR="ios/App/App/Assets.xcassets/AppIcon.appiconset"
-          if [ ! -f "${ICON_DIR}/icon-1024.png" ]; then
-            echo "ERROR: App icon assets were not generated from logo.png."
+
+          echo ""
+          echo "Checking launch screen..."
+
+          if grep -q 'Loading...' "$LAUNCH_SCREEN"; then
+            echo "✓ Loading... found"
+          else
+            echo "ERROR: Loading... not found"
             exit 1
           fi
 
-          grep -q 'customClass="StahapatiBridgeViewController"' ios/App/App/Base.lproj/Main.storyboard
-          grep -q 'customModule="App"' ios/App/App/Base.lproj/Main.storyboard
-          if grep -q 'customClass="StahapatiBridgeViewController" customModule="Capacitor"' ios/App/App/Base.lproj/Main.storyboard; then
-            echo "Main.storyboard still looks up the WebView host in the Capacitor module" >&2
+          if grep -q 'image="Splash"' "$LAUNCH_SCREEN"; then
+            echo "ERROR: LaunchScreen still references Splash"
+            exit 1
+          else
+            echo "✓ Splash logo is not referenced"
+          fi
+
+          echo ""
+          echo "Checking AppDelegate..."
+
+          if grep -q 'hideSplashWhenWebViewIsReady' "$APP_DELEGATE"; then
+            echo "✓ hideSplashWhenWebViewIsReady found"
+          else
+            echo "ERROR: hideSplashWhenWebViewIsReady not found"
             exit 1
           fi
 
-          grep -q 'accounts.google.com' ios/App/App/capacitor.config.json
-          grep -q '"\*\.gstatic.com"' ios/App/App/capacitor.config.json
-          grep -q 'Safari/604.1' ios/App/App/capacitor.config.json
-          grep -q 'StahapatiInAppNavigationProxy' ios/App/App/AppDelegate.swift
-          grep -q 'createWebViewWith' ios/App/App/AppDelegate.swift
-          grep -q 'shouldCapturePopup' ios/App/App/AppDelegate.swift
-          grep -q 'oauthPopupWebView' ios/App/App/AppDelegate.swift
-          grep -q 'inAppGoogleOAuthNoSafariHandoff' ios/App/App/AppDelegate.swift
-          grep -q 'withgoogle.com' ios/App/App/capacitor.config.json
-          if grep -q 'clearCancelledGoogleOAuthIfNeeded' ios/App/App/AppDelegate.swift; then
-            echo "AppDelegate still clears the in-app session when returning from Safari" >&2
+          echo ""
+          echo "Checking app icon..."
+
+          if [ -f "${ICON_DIR}/icon-1024.png" ]; then
+            echo "✓ 1024px app icon found"
+          else
+            echo "ERROR: icon-1024.png not found"
             exit 1
           fi
+
+          echo ""
+          echo "Checking Main.storyboard..."
+
+          if grep -q 'customClass="StahapatiBridgeViewController"' "$MAIN_STORYBOARD"; then
+            echo "✓ StahapatiBridgeViewController found"
+          else
+            echo "ERROR: StahapatiBridgeViewController not found"
+            exit 1
+          fi
+
+          if grep -q 'customModule="App"' "$MAIN_STORYBOARD"; then
+            echo "✓ Main.storyboard uses App module"
+          else
+            echo "ERROR: Main.storyboard App module not found"
+            exit 1
+          fi
+
+          if grep -q 'customClass="StahapatiBridgeViewController" customModule="Capacitor"' "$MAIN_STORYBOARD"; then
+            echo "ERROR: Main.storyboard still references Capacitor module"
+            exit 1
+          else
+            echo "✓ Main.storyboard does not use Capacitor module for bridge"
+          fi
+
+          echo ""
+          echo "Checking in-app Google OAuth implementation..."
+
+          REQUIRED_APP_DELEGATE_PATTERNS=(
+            'StahapatiInAppNavigationProxy'
+            'createWebViewWith'
+            'shouldCapturePopup'
+            'oauthPopupWebView'
+            'inAppGoogleOAuthNoSafariHandoff'
+          )
+
+          for pattern in "${REQUIRED_APP_DELEGATE_PATTERNS[@]}"; do
+            if grep -q "$pattern" "$APP_DELEGATE"; then
+              echo "✓ AppDelegate contains: $pattern"
+            else
+              echo "ERROR: AppDelegate missing: $pattern"
+              echo ""
+              echo "Relevant AppDelegate content:"
+              grep -n -E 'Google|OAuth|Safari|Popup|WebView|Navigation' "$APP_DELEGATE" || true
+              exit 1
+            fi
+          done
+
+          REQUIRED_CAPACITOR_PATTERNS=(
+            'accounts.google.com'
+            'Safari/604.1'
+            'withgoogle.com'
+          )
+
+          for pattern in "${REQUIRED_CAPACITOR_PATTERNS[@]}"; do
+            if grep -q "$pattern" "$CAP_CONFIG"; then
+              echo "✓ capacitor.config.json contains: $pattern"
+            else
+              echo "ERROR: capacitor.config.json missing: $pattern"
+              echo ""
+              cat "$CAP_CONFIG"
+              exit 1
+            fi
+          done
+
+          echo ""
+          echo "Checking gstatic configuration..."
+
+          if grep -q 'gstatic.com' "$CAP_CONFIG"; then
+            echo "✓ gstatic.com configuration found"
+          else
+            echo "ERROR: gstatic.com configuration not found"
+            exit 1
+          fi
+
+          echo ""
+          echo "Checking that old Safari-session cleanup is removed..."
+
+          if grep -q 'clearCancelledGoogleOAuthIfNeeded' "$APP_DELEGATE"; then
+            echo "ERROR: Old clearCancelledGoogleOAuthIfNeeded implementation is still present"
+            exit 1
+          else
+            echo "✓ Old Safari-session cleanup is not present"
+          fi
+
+          echo ""
+          echo "Running OAuth validation script..."
+
           python3 scripts/validate-in-app-oauth.py
 
-          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Sthapati"
+          echo ""
+          echo "Checking app display name..."
 
-          echo "Startup screen is Loading... (no logo). App icon from logo.png verified. App name is Sthapati."
+          DISPLAY_NAME=$(
+            /usr/libexec/PlistBuddy \
+              -c "Print :CFBundleDisplayName" \
+              ios/App/App/Info.plist
+          )
+
+          if [ "$DISPLAY_NAME" = "Sthapati" ]; then
+            echo "✓ App display name is Sthapati"
+          else
+            echo "ERROR: Expected app name Sthapati, found: $DISPLAY_NAME"
+            exit 1
+          fi
+
+          echo ""
+          echo "========================================"
+          echo "All generated iOS project checks passed"
+          echo "========================================"
 
       - name: Build iOS app
         run: bash scripts/build-ios-app.sh build
 
-      - name: Package App.zip
+      - name: Verify App.app exists
+        shell: bash
         run: |
-          APP_PATH=$(find build/DerivedData -type d -name "App.app" -print -quit)
+          APP_PATH=$(find build/DerivedData \
+            -type d \
+            -name "App.app" \
+            -print -quit)
 
           if [ -z "$APP_PATH" ]; then
             echo "ERROR: App.app was not found."
-            echo "Contents of build directory:"
+            echo ""
+            echo "Build directory:"
             find build -maxdepth 6 -print
             exit 1
           fi
 
-          echo "Found app at: $APP_PATH"
+          echo "✓ App.app found:"
+          echo "$APP_PATH"
+
+      - name: Package App.zip
+        shell: bash
+        run: |
+          APP_PATH=$(find build/DerivedData \
+            -type d \
+            -name "App.app" \
+            -print -quit)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: App.app was not found."
+            exit 1
+          fi
+
           mkdir -p artifacts
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "artifacts/App.zip"
+
+          echo "Packaging:"
+          echo "$APP_PATH"
+
+          ditto -c -k \
+            --sequesterRsrc \
+            --keepParent \
+            "$APP_PATH" \
+            "artifacts/App.zip"
+
+          echo "✓ App.zip created"
 
       - name: Upload App.zip
         uses: actions/upload-artifact@v4
