@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Verify iOS setup
+        shell: bash
+        run: |
+          set -u
+
+          echo "===== iOS SETUP VERIFICATION ====="
+
+          echo "[1] ios/App"
+          test -d ios/App
+          echo "PASS"
+
+          echo "[2] Loading screen"
+          grep -q 'Loading...' ios/App/App/Base.lproj/LaunchScreen.storyboard
+          echo "PASS"
+
+          echo "[3] No Splash image reference"
+          if grep -q 'image="Splash"' ios/App/App/Base.lproj/LaunchScreen.storyboard; then
+            echo "FAIL: LaunchScreen still references Splash"
+            exit 1
+          fi
+          echo "PASS"
+
+          echo "[4] AppDelegate splash handling"
+          grep -q 'hideSplashWhenWebViewIsReady' ios/App/App/AppDelegate.swift
+          echo "PASS"
+
+          echo "[5] App icon"
+          ICON_DIR="ios/App/App/Assets.xcassets/AppIcon.appiconset"
+          if [ ! -f "${ICON_DIR}/icon-1024.png" ]; then
+            echo "FAIL: ${ICON_DIR}/icon-1024.png not found"
+            ls -la "${ICON_DIR}" || true
+            exit 1
+          fi
+          echo "PASS"
+
+          echo "[6] Bridge storyboard class"
+          grep -q 'customClass="StahapatiBridgeViewController"' ios/App/App/Base.lproj/Main.storyboard
+          echo "PASS"
+
+          echo "[7] Bridge storyboard module"
+          grep -q 'customModule="App"' ios/App/App/Base.lproj/Main.storyboard
+          echo "PASS"
+
+          echo "[8] Capacitor module check"
+          if grep -q 'customClass="StahapatiBridgeViewController" customModule="Capacitor"' ios/App/App/Base.lproj/Main.storyboard; then
+            echo "FAIL: Bridge still uses Capacitor module"
+            exit 1
+          fi
+          echo "PASS"
+
+          echo "[9] Google domain"
+          grep -q 'accounts.google.com' ios/App/App/capacitor.config.json
+          echo "PASS"
+
+          echo "[10] gstatic domain"
+          if grep -q 'gstatic.com' ios/App/App/capacitor.config.json; then
+            echo "PASS"
+          else
+            echo "FAIL: gstatic.com not found"
+            cat ios/App/App/capacitor.config.json
+            exit 1
+          fi
+
+          echo "[11] Safari user-agent marker"
+          if grep -q 'Safari/604.1' ios/App/App/capacitor.config.json; then
+            echo "PASS"
+          else
+            echo "WARNING: Safari/604.1 not found"
+          fi
+
+          echo "[12] In-app navigation proxy"
+          grep -q 'StahapatiInAppNavigationProxy' ios/App/App/AppDelegate.swift
+          echo "PASS"
+
+          echo "[13] createWebViewWith"
+          grep -q 'createWebViewWith' ios/App/App/AppDelegate.swift
+          echo "PASS"
+
+          echo "[14] shouldCapturePopup"
+          grep -q 'shouldCapturePopup' ios/App/App/AppDelegate.swift
+          echo "PASS"
+
+          echo "[15] oauthPopupWebView"
+          grep -q 'oauthPopupWebView' ios/App/App/AppDelegate.swift
+          echo "PASS"
+
+          echo "[16] in-app OAuth flag"
+          grep -q 'inAppGoogleOAuthNoSafariHandoff' ios/App/App/AppDelegate.swift
+          echo "PASS"
+
+          echo "[17] withgoogle.com"
+          grep -q 'withgoogle.com' ios/App/App/capacitor.config.json
+          echo "PASS"
+
+          echo "[18] Old Safari session-clearing code"
+          if grep -q 'clearCancelledGoogleOAuthIfNeeded' ios/App/App/AppDelegate.swift; then
+            echo "FAIL: Old Safari session-clearing code still exists"
+            exit 1
+          fi
+          echo "PASS"
+
+          echo "[19] OAuth validation script"
+          test -f scripts/validate-in-app-oauth.py
+          python3 scripts/validate-in-app-oauth.py
+          echo "PASS"
+
+          echo "[20] App display name"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Sthapati"
+          echo "PASS"
+
+          echo "================================="
+          echo "ALL iOS SETUP CHECKS PASSED"
+          echo "================================="
