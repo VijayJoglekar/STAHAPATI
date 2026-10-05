@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install scroll/header fixes by extending AppDelegate and Main.storyboard."""
+"""Install the in-app WebView host, scroll fix, and Google OAuth navigation proxy."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 MARKER = "StahapatiBridgeViewController"
+SNIPPET_START = "enum StahapatiInAppNavigation"
 SNIPPET_NAME = "bridge-viewcontroller.swift.snippet"
 
 
@@ -16,20 +17,22 @@ def ensure_imports(content: str) -> str:
     return content
 
 
+def snippet_start_index(content: str) -> int:
+    for marker in (f"\n{SNIPPET_START}", f"\nclass {MARKER}", SNIPPET_START, f"class {MARKER}"):
+        index = content.find(marker)
+        if index != -1:
+            return index
+    return -1
+
+
 def patch_app_delegate(app_delegate: Path, snippet: Path) -> None:
     content = app_delegate.read_text(encoding="utf-8")
     bridge_class = snippet.read_text(encoding="utf-8")
     content = ensure_imports(content)
 
-    class_marker = f"class {MARKER}"
-    if class_marker in content:
-        start = content.find("\n" + class_marker)
-        if start == -1:
-            start = content.find(class_marker)
-        if start != -1:
-            content = content[:start].rstrip() + "\n" + bridge_class + "\n"
-        else:
-            content = content.rstrip() + "\n" + bridge_class + "\n"
+    start = snippet_start_index(content)
+    if start != -1:
+        content = content[:start].rstrip() + "\n" + bridge_class + "\n"
     else:
         content = content.rstrip() + "\n" + bridge_class + "\n"
 

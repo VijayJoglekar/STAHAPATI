@@ -7,6 +7,7 @@
     "cap:sync": "npx cap sync ios",
     "cap:open": "npx cap open ios",
     "ios:setup": "bash scripts/build-ios-app.sh setup",
+    "validate:oauth": "python scripts/validate-in-app-oauth.py",
     "ios:open": "bash scripts/build-ios-app.sh open",
     "ios:archive": "bash scripts/build-ios-app.sh archive"
   },

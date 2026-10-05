@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Patch Capacitor AppDelegate.swift to route OAuth deep links back into the WebView."""
+"""Patch Capacitor AppDelegate.swift to keep optional custom-scheme returns in the WebView.
+
+Google signup itself stays inside the Capacitor WebView. This handler only exists so a
+legacy com.stahapatis.app:// callback still loads the live site instead of being dropped.
+"""
 
 from __future__ import annotations
 
@@ -7,39 +11,18 @@ import sys
 from pathlib import Path
 
 MARKER = "handleStahapatiOAuthReturn"
-VERSION_MARKER = "clearCancelledGoogleOAuthIfNeeded"
+VERSION_MARKER = "inAppGoogleOAuthNoSafariHandoff"
 HELPER = r'''
+    // inAppGoogleOAuthNoSafariHandoff
     private func handleStahapatiOAuthReturn(_ url: URL) {
         guard url.scheme == "com.stahapatis.app" else { return }
 
-        let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-        if url.host == "auth-success" || url.host == "auth" {
-            let hasError = queryItems.contains { item in
-                let name = item.name.lowercased()
-                guard ["error", "error_description", "error_code"].contains(name) else { return false }
-                return !(item.value ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            }
-            let hasHttpError = queryItems.contains { item in
-                guard ["status", "status_code", "http_status"].contains(item.name.lowercased()),
-                      let value = item.value,
-                      let status = Int(value) else { return false }
-                return (400...599).contains(status)
-            }
-            let hasToken = queryItems.contains { item in
-                item.name == "token" && !(item.value ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            }
-
-            guard !hasError, !hasHttpError, hasToken else {
-                clearStahapatiWebSession()
-                return
-            }
-        }
-
-        var targetString = "https://sthapatiapp.com/auth"
+        var targetString = "https://sthapatiapp.com/"
         if let host = url.host, !host.isEmpty {
             if host == "auth-success" || host == "auth" {
+                targetString = "https://sthapatiapp.com/auth"
                 if let query = url.query, !query.isEmpty {
-                    targetString = "https://sthapatiapp.com/auth?" + query
+                    targetString += "?" + query
                 }
             } else {
                 targetString = "https://sthapatiapp.com/" + host
@@ -48,82 +31,18 @@ HELPER = r'''
                 }
             }
         } else if let query = url.query, !query.isEmpty {
-            targetString += "?" + query
+            targetString = "https://sthapatiapp.com/auth?" + query
         }
 
         guard let targetURL = URL(string: targetString) else { return }
-
         guard let bridge = window?.rootViewController as? CAPBridgeViewController,
               let webView = bridge.webView else {
             NSLog("Unable to handle Sthapati OAuth return: Capacitor WebView is unavailable.")
             return
         }
 
-        let loadCallback = {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                webView.load(URLRequest(url: targetURL))
-            }
-        }
-        if url.host == "auth-success" || url.host == "auth" {
-            webView.evaluateJavaScript("sessionStorage.removeItem('__stahapatiGoogleOAuthPending');") { _, error in
-                if let error = error {
-                    NSLog("Unable to clear pending Google OAuth marker: %@", error.localizedDescription)
-                }
-                loadCallback()
-            }
-        } else {
-            loadCallback()
-        }
-    }
-
-    private func clearStahapatiWebSession() {
-        guard let bridge = window?.rootViewController as? CAPBridgeViewController,
-              let webView = bridge.webView else {
-            NSLog("Unable to clear failed Google signup session: Capacitor WebView is unavailable.")
-            return
-        }
-        removeStahapatiAuthData(from: webView)
-    }
-
-    private func removeStahapatiAuthData(from webView: WKWebView) {
-        guard let homeURL = URL(string: "https://sthapatiapp.com/") else {
-            NSLog("Unable to reset failed Google signup session: invalid site URL.")
-            return
-        }
-
-        let dataStore = webView.configuration.websiteDataStore
-        let authDataTypes: Set<String> = [
-            WKWebsiteDataTypeCookies,
-            WKWebsiteDataTypeLocalStorage,
-            WKWebsiteDataTypeSessionStorage,
-            WKWebsiteDataTypeIndexedDBDatabases
-        ]
-        dataStore.fetchDataRecords(ofTypes: authDataTypes) { records in
-            let siteRecords = records.filter { record in
-                let displayName = record.displayName.lowercased()
-                let host = URL(string: displayName.contains("://") ? displayName : "https://" + displayName)?.host?.lowercased() ?? displayName
-                return host == "sthapatiapp.com" || host.hasSuffix(".sthapatiapp.com")
-            }
-            dataStore.removeData(ofTypes: authDataTypes, for: siteRecords) {
-                DispatchQueue.main.async {
-                    webView.load(URLRequest(url: homeURL))
-                }
-            }
-        }
-    }
-
-    private func clearCancelledGoogleOAuthIfNeeded() {
-        guard let bridge = window?.rootViewController as? CAPBridgeViewController,
-              let webView = bridge.webView else { return }
-
-        let script = "(function () { if (sessionStorage.getItem('__stahapatiGoogleOAuthPending') !== '1') return false; sessionStorage.removeItem('__stahapatiGoogleOAuthPending'); return true; })();"
-        webView.evaluateJavaScript(script) { result, error in
-            if let error = error {
-                NSLog("Unable to inspect pending Google OAuth session: %@", error.localizedDescription)
-                return
-            }
-            guard let wasPending = result as? Bool, wasPending else { return }
-            self.removeStahapatiAuthData(from: webView)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            webView.load(URLRequest(url: targetURL))
         }
     }
 '''
@@ -139,48 +58,51 @@ OPEN_URL_NEW = """    func application(_ app: UIApplication, open url: URL, opti
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
     }"""
 
+BECOME_ACTIVE_OAUTH = """    func applicationDidBecomeActive(_ application: UIApplication) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.clearCancelledGoogleOAuthIfNeeded()
+        }
+    }"""
+
+BECOME_ACTIVE_ORIGINAL = """    func applicationDidBecomeActive(_ application: UIApplication) {
+        // Restart any tasks that were paused (or not started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+    }"""
+
+
+def strip_old_oauth_helpers(content: str) -> str:
+    content = content.replace(BECOME_ACTIVE_OAUTH, BECOME_ACTIVE_ORIGINAL)
+
+    helper_start = content.find("\n    private func handleStahapatiOAuthReturn")
+    if helper_start == -1:
+        return content
+
+    class_end = content.find("\n}\n", helper_start)
+    if class_end == -1:
+        raise SystemExit("Could not remove the existing OAuth callback helper.")
+    return content[:helper_start] + content[class_end:]
+
 
 def patch(path: Path) -> bool:
     content = path.read_text(encoding="utf-8")
     if VERSION_MARKER in content:
         return False
 
-    if MARKER in content:
-        helper_start = content.rfind("\n    private func handleStahapatiOAuthReturn")
-        class_end = content.rfind("\n}\n")
-        if helper_start == -1 or class_end < helper_start:
-            raise SystemExit("Could not replace the existing OAuth callback helper.")
-        content = content[:helper_start] + HELPER + content[class_end:]
-    else:
+    content = strip_old_oauth_helpers(content)
+
+    if OPEN_URL_NEW not in content:
         if OPEN_URL_OLD not in content:
             raise SystemExit(
                 "AppDelegate.swift format changed; expected Capacitor open-url handler block."
             )
         content = content.replace(OPEN_URL_OLD, OPEN_URL_NEW)
 
-    original_active_handler = (
-        "    func applicationDidBecomeActive(_ application: UIApplication) {\n"
-        "        // Restart any tasks that were paused (or not started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.\n"
-        "    }"
-    )
-    if original_active_handler in content:
-        content = content.replace(
-            original_active_handler,
-            "    func applicationDidBecomeActive(_ application: UIApplication) {\n"
-            "        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in\n"
-            "            self?.clearCancelledGoogleOAuthIfNeeded()\n"
-            "        }\n"
-            "    }",
-        )
-    elif "self?.clearCancelledGoogleOAuthIfNeeded()" not in content:
-        raise SystemExit("Could not install OAuth cancellation handling.")
+    if MARKER not in content:
+        marker = "\n}\n"
+        index = content.find(marker)
+        if index == -1:
+            raise SystemExit("Could not find AppDelegate class closing brace.")
+        content = content[:index] + HELPER + content[index:]
 
-    marker = "\n}\n"
-    index = content.rfind(marker)
-    if index == -1:
-        raise SystemExit("Could not find AppDelegate class closing brace.")
-
-    content = content[:index] + HELPER + content[index:]
     path.write_text(content, encoding="utf-8")
     return True
 

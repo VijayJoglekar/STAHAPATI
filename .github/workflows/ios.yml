@@ -54,6 +54,21 @@ jobs:
             exit 1
           fi
 
+          grep -q 'accounts.google.com' ios/App/App/capacitor.config.json
+          grep -q '"\*\.gstatic.com"' ios/App/App/capacitor.config.json
+          grep -q 'Safari/604.1' ios/App/App/capacitor.config.json
+          grep -q 'StahapatiInAppNavigationProxy' ios/App/App/AppDelegate.swift
+          grep -q 'createWebViewWith' ios/App/App/AppDelegate.swift
+          grep -q 'shouldCapturePopup' ios/App/App/AppDelegate.swift
+          grep -q 'oauthPopupWebView' ios/App/App/AppDelegate.swift
+          grep -q 'inAppGoogleOAuthNoSafariHandoff' ios/App/App/AppDelegate.swift
+          grep -q 'withgoogle.com' ios/App/App/capacitor.config.json
+          if grep -q 'clearCancelledGoogleOAuthIfNeeded' ios/App/App/AppDelegate.swift; then
+            echo "AppDelegate still clears the in-app session when returning from Safari" >&2
+            exit 1
+          fi
+          python3 scripts/validate-in-app-oauth.py
+
           /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/App/App/Info.plist | grep -qx "Sthapati"
 
           echo "Startup screen is Loading... (no logo). App icon from logo.png verified. App name is Sthapati."

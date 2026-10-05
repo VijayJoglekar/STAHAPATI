@@ -99,10 +99,27 @@ write_capacitor_config() {
     "allowNavigation": [
       "sthapatiapp.com",
       "*.sthapatiapp.com",
-      "accounts.google.com",
-      "*.google.com",
       "google.com",
-      "*.googleusercontent.com"
+      "*.google.com",
+      "accounts.google.com",
+      "googleapis.com",
+      "*.googleapis.com",
+      "gstatic.com",
+      "*.gstatic.com",
+      "googleusercontent.com",
+      "*.googleusercontent.com",
+      "recaptcha.net",
+      "*.recaptcha.net",
+      "g.co",
+      "*.g.co",
+      "google.co.in",
+      "*.google.co.in",
+      "youtube.com",
+      "*.youtube.com",
+      "withgoogle.com",
+      "*.withgoogle.com",
+      "googleadservices.com",
+      "*.googleadservices.com"
     ]
   },
   "ios": {
@@ -110,7 +127,8 @@ write_capacitor_config() {
     "allowsLinkPreview": false,
     "scrollEnabled": true,
     "limitsNavigationsToAppBoundDomains": false,
-    "backgroundColor": "#ffffff"
+    "backgroundColor": "#ffffff",
+    "appendUserAgent": "Safari/604.1"
   },
   "plugins": {
     "SplashScreen": {

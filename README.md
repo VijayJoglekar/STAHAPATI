@@ -74,16 +74,16 @@ Use a 1024×1024 PNG of the Sthapati logo. The GitHub Actions workflow and `scri
 
 ## Google Sign-In (iOS)
 
+Google signup/login stays **inside the app WebView**. It does not open Safari.
+
 Expected flow:
-1. App opens **inside the native app** (WebView), not Safari.
-2. Tap **Sign in with Google** → Safari opens for Google login (required by Google).
-3. After login, the website must redirect to:
+1. App loads https://sthapatiapp.com in the Capacitor WebView.
+2. Tap **Sign up with Google** / **Sign in with Google**.
+3. Google OAuth runs in the same WebView (same cookie jar as the website).
+4. Google returns to `https://sthapatiapp.com/api/auth/callback/google`.
+5. The existing website session, OTP, and dashboard flow continue unchanged.
 
-`com.stahapatis.app://auth-success?token=...`
-
-4. iOS accepts only a callback containing a non-empty `token` and no OAuth error, then loads the existing website auth route so the website can continue its OTP verification flow.
-
-The iOS build registers the `com.stahapatis.app` URL scheme and patches `AppDelegate` to route that callback back into the app WebView. Safari and the app WebView do not share their authenticated session, so the token callback is the handoff. An explicit OAuth error, or returning to the app after starting Google sign-in without a callback, clears only the Sthapati WebView's cookies and browser storage before reloading the site. This prevents a cached Google profile from being treated as a completed signup. If sign-in still stops in Safari, add the redirect above on the website OAuth callback page.
+The iOS layer intercepts Capacitor's Safari handoff (`UIApplication.shared.open` on unknown hosts and on `window.open` / `target=_blank`). Google and Sthapati auth URLs, including `about:blank` OAuth popups, stay in the same WebView cookie jar so NextAuth can return to `https://sthapatiapp.com/api/auth/callback/google`. A `com.stahapatis.app://` URL is still accepted as a fallback and is loaded back into the WebView; it is not used as Google's OAuth redirect URI.
 
 ## Notes
 
