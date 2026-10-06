@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the in-app WebView host, scroll fix, and Google OAuth navigation proxy."""
+"""Install the iOS WebView host and the live-site header/scroll fix."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 MARKER = "StahapatiBridgeViewController"
-SNIPPET_START = "enum StahapatiInAppNavigation"
+LEGACY_SNIPPET_START = "enum StahapatiInAppNavigation"
 SNIPPET_NAME = "bridge-viewcontroller.swift.snippet"
 
 
@@ -18,7 +18,12 @@ def ensure_imports(content: str) -> str:
 
 
 def snippet_start_index(content: str) -> int:
-    for marker in (f"\n{SNIPPET_START}", f"\nclass {MARKER}", SNIPPET_START, f"class {MARKER}"):
+    for marker in (
+        f"\n{LEGACY_SNIPPET_START}",
+        f"\nclass {MARKER}",
+        LEGACY_SNIPPET_START,
+        f"class {MARKER}",
+    ):
         index = content.find(marker)
         if index != -1:
             return index

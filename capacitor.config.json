@@ -8,28 +8,7 @@
     "errorPath": "index.html",
     "allowNavigation": [
       "sthapatiapp.com",
-      "*.sthapatiapp.com",
-      "google.com",
-      "*.google.com",
-      "accounts.google.com",
-      "googleapis.com",
-      "*.googleapis.com",
-      "gstatic.com",
-      "*.gstatic.com",
-      "googleusercontent.com",
-      "*.googleusercontent.com",
-      "recaptcha.net",
-      "*.recaptcha.net",
-      "g.co",
-      "*.g.co",
-      "google.co.in",
-      "*.google.co.in",
-      "youtube.com",
-      "*.youtube.com",
-      "withgoogle.com",
-      "*.withgoogle.com",
-      "googleadservices.com",
-      "*.googleadservices.com"
+      "*.sthapatiapp.com"
     ]
   },
   "ios": {
@@ -37,8 +16,7 @@
     "allowsLinkPreview": false,
     "scrollEnabled": true,
     "limitsNavigationsToAppBoundDomains": false,
-    "backgroundColor": "#ffffff",
-    "appendUserAgent": "Safari/604.1"
+    "backgroundColor": "#ffffff"
   },
   "plugins": {
     "SplashScreen": {
@@ -50,12 +28,6 @@
     "StatusBar": {
       "style": "DARK",
       "backgroundColor": "#ffffff"
-    },
-    "GoogleAuth": {
-      "iosClientId": "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com",
-      "iosServerClientId": "YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com",
-      "scopes": ["profile", "email"],
-      "serverClientId": "YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com"
     },
     "CapacitorCookies": {
       "enabled": true

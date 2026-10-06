@@ -23,7 +23,6 @@ IOS_DIR="${ROOT_DIR}/ios"
 APP_SITE_URL="${APP_SITE_URL:-https://sthapatiapp.com}"
 APP_ID="${IOS_BUNDLE_ID:-com.stahapatis.app}"
 APP_NAME="${APP_NAME:-Sthapati}"
-APP_SCHEME="${APP_SCHEME:-com.stahapatis.app}"
 IOS_SCHEME="${IOS_SCHEME:-App}"
 ARCHIVE_PATH="${ROOT_DIR}/build/Stahapati.xcarchive"
 EXPORT_PATH="${ROOT_DIR}/build/export"
@@ -84,9 +83,6 @@ copy_web_assets() {
 }
 
 write_capacitor_config() {
-  local google_ios_client_id="${GOOGLE_IOS_CLIENT_ID:-YOUR_IOS_CLIENT_ID.apps.googleusercontent.com}"
-  local google_server_client_id="${GOOGLE_SERVER_CLIENT_ID:-YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com}"
-
   cat > "${ROOT_DIR}/capacitor.config.json" <<EOF
 {
   "appId": "${APP_ID}",
@@ -98,28 +94,7 @@ write_capacitor_config() {
     "errorPath": "index.html",
     "allowNavigation": [
       "sthapatiapp.com",
-      "*.sthapatiapp.com",
-      "google.com",
-      "*.google.com",
-      "accounts.google.com",
-      "googleapis.com",
-      "*.googleapis.com",
-      "gstatic.com",
-      "*.gstatic.com",
-      "googleusercontent.com",
-      "*.googleusercontent.com",
-      "recaptcha.net",
-      "*.recaptcha.net",
-      "g.co",
-      "*.g.co",
-      "google.co.in",
-      "*.google.co.in",
-      "youtube.com",
-      "*.youtube.com",
-      "withgoogle.com",
-      "*.withgoogle.com",
-      "googleadservices.com",
-      "*.googleadservices.com"
+      "*.sthapatiapp.com"
     ]
   },
   "ios": {
@@ -127,8 +102,7 @@ write_capacitor_config() {
     "allowsLinkPreview": false,
     "scrollEnabled": true,
     "limitsNavigationsToAppBoundDomains": false,
-    "backgroundColor": "#ffffff",
-    "appendUserAgent": "Safari/604.1"
+    "backgroundColor": "#ffffff"
   },
   "plugins": {
     "SplashScreen": {
@@ -140,12 +114,6 @@ write_capacitor_config() {
     "StatusBar": {
       "style": "DARK",
       "backgroundColor": "#ffffff"
-    },
-    "GoogleAuth": {
-      "iosClientId": "${google_ios_client_id}",
-      "iosServerClientId": "${google_server_client_id}",
-      "scopes": ["profile", "email"],
-      "serverClientId": "${google_server_client_id}"
     },
     "CapacitorCookies": {
       "enabled": true
@@ -173,6 +141,13 @@ add_ios_platform() {
   else
     log "iOS platform already exists."
   fi
+}
+
+verify_ios_project() {
+  [[ -d "${IOS_DIR}/App" ]] || fail "Capacitor setup completed without generating ${IOS_DIR}/App. Current directory: $(pwd)"
+  [[ -d "${IOS_DIR}/App/App.xcodeproj" || -d "${IOS_DIR}/App/App.xcworkspace" ]] || \
+    fail "Generated iOS app directory is missing its Xcode project/workspace: ${IOS_DIR}/App"
+  log "Verified generated iOS project at ${IOS_DIR}/App"
 }
 
 sync_ios() {
@@ -310,40 +285,14 @@ patch_info_plist() {
   local plist="${IOS_DIR}/App/App/Info.plist"
   [[ -f "${plist}" ]] || return 0
 
-  log "Patching Info.plist (name, OAuth URL scheme, permissions)..."
+  log "Patching Info.plist (app name and permissions)..."
 
   plist_set_or_add "${plist}" "CFBundleDisplayName" "string" "${APP_NAME}"
   plist_set_or_add "${plist}" "CFBundleName" "string" "${APP_NAME}"
 
-  /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "${plist}" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "${plist}"
-  /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "${plist}"
-  /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLName string ${APP_SCHEME}" "${plist}"
-  /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "${plist}"
-  /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string ${APP_SCHEME}" "${plist}"
-
-  if [[ -n "${GOOGLE_IOS_CLIENT_ID:-}" ]]; then
-    local reversed_client_id="com.googleusercontent.apps.${GOOGLE_IOS_CLIENT_ID%%.*}"
-    /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:1 dict" "${plist}"
-    /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:1:CFBundleURLName string Google" "${plist}"
-    /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:1:CFBundleURLSchemes array" "${plist}"
-    /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:1:CFBundleURLSchemes:0 string ${reversed_client_id}" "${plist}"
-  fi
-
   plist_set_or_add "${plist}" "NSCameraUsageDescription" "string" "Sthapati needs camera access to upload profile and project photos."
   plist_set_or_add "${plist}" "NSPhotoLibraryUsageDescription" "string" "Sthapati needs photo library access to upload images."
   plist_set_or_add "${plist}" "NSPhotoLibraryAddUsageDescription" "string" "Sthapati needs permission to save photos."
-}
-
-patch_app_delegate() {
-  local delegate="${IOS_DIR}/App/App/AppDelegate.swift"
-  local patch_script="${ROOT_DIR}/scripts/patch-app-delegate.py"
-
-  [[ -f "${delegate}" ]] || return 0
-  [[ -f "${patch_script}" ]] || fail "Missing OAuth patch script: ${patch_script}"
-
-  log "Patching AppDelegate for Google Sign-In return to app..."
-  python3 "${patch_script}" "${delegate}"
 }
 
 patch_bridge_viewcontroller() {
@@ -466,13 +415,14 @@ run_setup() {
   copy_web_assets
   install_dependencies
   add_ios_platform
+  verify_ios_project
   sync_ios
   copy_web_assets
   setup_app_icon_assets
   patch_info_plist
   patch_startup_screen
-  patch_app_delegate
   patch_bridge_viewcontroller
+  verify_ios_project
   log "Setup complete."
 }
 

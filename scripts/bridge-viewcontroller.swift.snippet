@@ -1,226 +1,7 @@
-enum StahapatiInAppNavigation {
-    /// Keep Sthapati and Google-family HTTP(S) URLs in the Capacitor WebView.
-    /// Capacitor's allowNavigation matcher requires the same number of DNS
-    /// labels as the pattern, so hosts like android.clients.google.com would
-    /// otherwise be handed to the system browser.
-    static func shouldKeepInApp(_ url: URL) -> Bool {
-        guard let scheme = url.scheme?.lowercased() else { return false }
-        guard scheme == "http" || scheme == "https" else { return false }
-        guard let host = url.host?.lowercased() else { return false }
-
-        if isSthapatiHost(host) {
-            return true
-        }
-        return isGoogleFamilyHost(host)
-    }
-
-    /// Google account-creation / OAuth often starts a popup as about:blank
-    /// (or with no URL yet). Capacitor's WKUIDelegate then opens that popup in
-    /// the system browser, which is the Safari handoff.
-    static func shouldCapturePopup(_ url: URL?) -> Bool {
-        guard let url = url else { return true }
-        let scheme = url.scheme?.lowercased() ?? ""
-        if scheme.isEmpty || scheme == "about" {
-            return true
-        }
-        return shouldKeepInApp(url)
-    }
-
-    static func isSthapatiHost(_ host: String) -> Bool {
-        host == "sthapatiapp.com" || host.hasSuffix(".sthapatiapp.com")
-    }
-
-    static func isGoogleFamilyHost(_ host: String) -> Bool {
-        let suffixes = [
-            "google.com",
-            "googleapis.com",
-            "gstatic.com",
-            "googleusercontent.com",
-            "recaptcha.net",
-            "g.co",
-            "google.co.in",
-            "google.co.uk",
-            "youtube.com",
-            "ytimg.com",
-            "ggpht.com",
-            "withgoogle.com",
-            "googleadservices.com",
-            "googletagmanager.com",
-            "googlevideo.com"
-        ]
-
-        if suffixes.contains(where: { host == $0 || host.hasSuffix("." + $0) }) {
-            return true
-        }
-
-        let parts = host.split(separator: ".")
-        if parts.count >= 3 {
-            let country = parts.suffix(3).joined(separator: ".")
-            if country.hasPrefix("google.co.") || country.hasPrefix("google.com.") {
-                return true
-            }
-        }
-        return false
-    }
-}
-
-final class StahapatiInAppNavigationProxy: NSObject, WKNavigationDelegate, WKUIDelegate {
-    private weak var capacitorHandler: WebViewDelegationHandler?
-    private weak var appWebView: WKWebView?
-    private var oauthPopupWebView: WKWebView?
-
-    init(webView: WKWebView, capacitorHandler: WebViewDelegationHandler) {
-        self.appWebView = webView
-        self.capacitorHandler = capacitorHandler
-        super.init()
-    }
-
-    override func responds(to aSelector: Selector) -> Bool {
-        if super.responds(to: aSelector) {
-            return true
-        }
-        return capacitorHandler?.responds(to: aSelector) ?? false
-    }
-
-    override func forwardingTarget(for aSelector: Selector) -> Any? {
-        if capacitorHandler?.responds(to: aSelector) == true {
-            return capacitorHandler
-        }
-        return super.forwardingTarget(for: aSelector)
-    }
-
-    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        if let url = navigationAction.request.url, StahapatiInAppNavigation.shouldKeepInApp(url) {
-            if webView !== appWebView {
-                loadInApp(url)
-                oauthPopupWebView = nil
-                decisionHandler(.cancel)
-                return
-            }
-            decisionHandler(.allow)
-            return
-        }
-
-        guard let capacitorHandler = capacitorHandler else {
-            decisionHandler(.allow)
-            return
-        }
-        capacitorHandler.webView(webView, decidePolicyFor: navigationAction, decisionHandler: decisionHandler)
-    }
-
-    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        if let url = navigationAction.request.url, StahapatiInAppNavigation.shouldKeepInApp(url) {
-            loadInApp(url)
-            return nil
-        }
-
-        if StahapatiInAppNavigation.shouldCapturePopup(navigationAction.request.url) {
-            let popup = WKWebView(frame: .zero, configuration: configuration)
-            popup.navigationDelegate = self
-            popup.uiDelegate = self
-            oauthPopupWebView = popup
-            return popup
-        }
-
-        return capacitorHandler?.webView(webView, createWebViewWith: configuration, for: navigationAction, windowFeatures: windowFeatures)
-    }
-
-    private func loadInApp(_ url: URL) {
-        DispatchQueue.main.async { [weak self] in
-            self?.appWebView?.load(URLRequest(url: url))
-        }
-    }
-}
-
 class StahapatiBridgeViewController: CAPBridgeViewController {
-    private var inAppNavigationProxy: StahapatiInAppNavigationProxy?
-
-    override open func capacitorDidLoad() {
-        super.capacitorDidLoad()
-
-        guard let webView = webView,
-              let capacitorBridge = bridge as? CapacitorBridge else {
-            NSLog("Unable to install in-app OAuth navigation: Capacitor WebView is unavailable.")
-            return
-        }
-
-        let proxy = StahapatiInAppNavigationProxy(
-            webView: webView,
-            capacitorHandler: capacitorBridge.webViewDelegationHandler
-        )
-        inAppNavigationProxy = proxy
-        webView.navigationDelegate = proxy
-        webView.uiDelegate = proxy
-    }
-
     /// Unsticks the live site header (`header.sticky.top-0`) so it scrolls with the page.
-    /// Also keeps Google OAuth in the same window instead of window.open → Safari.
     private let scrollFixJavaScript = """
     (function () {
-      if (!window.__stahapatiKeepGoogleInApp) {
-        window.__stahapatiKeepGoogleInApp = true;
-
-        function isGoogleFamilyHost(host) {
-          host = (host || '').toLowerCase();
-          var suffixes = [
-            'google.com',
-            'googleapis.com',
-            'gstatic.com',
-            'googleusercontent.com',
-            'recaptcha.net',
-            'g.co',
-            'google.co.in',
-            'google.co.uk',
-            'youtube.com',
-            'ytimg.com',
-            'ggpht.com',
-            'withgoogle.com',
-            'googleadservices.com',
-            'googletagmanager.com',
-            'googlevideo.com'
-          ];
-          if (suffixes.some(function (suffix) {
-            return host === suffix || host.slice(-(suffix.length + 1)) === '.' + suffix;
-          })) {
-            return true;
-          }
-          var parts = host.split('.');
-          if (parts.length >= 3) {
-            var country = parts.slice(-3).join('.');
-            return country.indexOf('google.co.') === 0 || country.indexOf('google.com.') === 0;
-          }
-          return false;
-        }
-
-        function isInAppAuthUrl(value) {
-          try {
-            var url = new URL(value, window.location.href);
-            var host = (url.hostname || '').toLowerCase();
-            if (host === 'sthapatiapp.com' || host.slice(-'.sthapatiapp.com'.length) === '.sthapatiapp.com') {
-              return true;
-            }
-            if (isGoogleFamilyHost(host)) {
-              return true;
-            }
-            return (url.pathname || '').indexOf('/api/auth') === 0;
-          } catch (error) {
-            return false;
-          }
-        }
-
-        var originalWindowOpen = window.open;
-        window.open = function (url) {
-          var value = url == null ? '' : String(url);
-          if (!value || value === 'about:blank' || isInAppAuthUrl(value)) {
-            if (value && value !== 'about:blank') {
-              window.location.assign(value);
-            }
-            return window;
-          }
-          return originalWindowOpen.apply(this, arguments);
-        };
-      }
-
       if (window.__stahapatiHeaderFix) {
         return;
       }
@@ -306,47 +87,30 @@ class StahapatiBridgeViewController: CAPBridgeViewController {
     })();
     """
 
-    /// Inject before the WebView is created so the fix runs on the first remote page load.
     override open func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
         let config = super.webViewConfiguration(for: instanceConfiguration)
-
-        let startScript = WKUserScript(
-            source: scrollFixJavaScript,
-            injectionTime: .atDocumentStart,
-            forMainFrameOnly: false
-        )
-        let endScript = WKUserScript(
+        let headerFix = WKUserScript(
             source: scrollFixJavaScript,
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: false
         )
-
-        config.userContentController.addUserScript(startScript)
-        config.userContentController.addUserScript(endScript)
+        config.userContentController.addUserScript(headerFix)
         return config
     }
 
     override open func capacitorDidLoad() {
         super.capacitorDidLoad()
         configureWebViewAppearance()
-        installInAppNavigationProxy()
-        applyScrollFixNow()
-    }
-
-    override open func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        installInAppNavigationProxy()
         applyScrollFixNow()
     }
 
     private func configureWebViewAppearance() {
-        view.backgroundColor = UIColor.white
-
+        view.backgroundColor = .white
         guard let webView = webView else { return }
 
         webView.isOpaque = true
-        webView.backgroundColor = UIColor.white
-        webView.scrollView.backgroundColor = UIColor.white
+        webView.backgroundColor = .white
+        webView.scrollView.backgroundColor = .white
         webView.scrollView.contentInsetAdjustmentBehavior = .automatic
         webView.scrollView.clipsToBounds = true
         webView.scrollView.bounces = true
@@ -354,40 +118,6 @@ class StahapatiBridgeViewController: CAPBridgeViewController {
         if #available(iOS 13.0, *) {
             webView.scrollView.automaticallyAdjustsScrollIndicatorInsets = true
         }
-
-        // WKWebView's default UA omits "Safari", which makes Google treat the
-        // in-app OAuth page as an embedded user-agent. Keep the rest of the
-        // system UA so the existing website Google flow can complete here.
-        if let currentAgent = webView.value(forKey: "userAgent") as? String,
-           currentAgent.range(of: "Safari/", options: .caseInsensitive) == nil {
-            webView.customUserAgent = currentAgent + " Safari/604.1"
-        }
-    }
-
-    private func installInAppNavigationProxy() {
-        guard let webView = webView else { return }
-
-        if inAppNavigationProxy != nil, webView.navigationDelegate === inAppNavigationProxy {
-            return
-        }
-
-        let capacitorHandler: WebViewDelegationHandler?
-        if let handler = webView.navigationDelegate as? WebViewDelegationHandler {
-            capacitorHandler = handler
-        } else if let proxy = webView.navigationDelegate as? StahapatiInAppNavigationProxy {
-            inAppNavigationProxy = proxy
-            webView.uiDelegate = proxy
-            return
-        } else {
-            return
-        }
-
-        guard let capacitorHandler = capacitorHandler else { return }
-
-        let proxy = StahapatiInAppNavigationProxy(webView: webView, capacitorHandler: capacitorHandler)
-        inAppNavigationProxy = proxy
-        webView.navigationDelegate = proxy
-        webView.uiDelegate = proxy
     }
 
     private func applyScrollFixNow() {

@@ -55,7 +55,6 @@ Output: `mobile/build/export/*.ipa`
 | `APP_SITE_URL` | `https://sthapatiapp.com` | Live site URL loaded in the app |
 | `IOS_BUNDLE_ID` | `com.stahapatis.app` | App Store bundle identifier |
 | `APP_NAME` | `Sthapati` | App name on home screen |
-| `APP_SCHEME` | `com.stahapatis.app` | OAuth deep link scheme |
 | `IOS_TEAM_ID` | — | Required for CLI archive |
 
 Example:
@@ -74,16 +73,9 @@ Use a 1024×1024 PNG of the Sthapati logo. The GitHub Actions workflow and `scri
 
 ## Google Sign-In (iOS)
 
-Google signup/login stays **inside the app WebView**. It does not open Safari.
+The app keeps `sthapatiapp.com` in the Capacitor WebView. Google authorization hosts are not allowlisted or rewritten by the native wrapper, so Capacitor hands top-level Google navigation and popup URLs to iOS's default browser handler. Google authentication and its website callbacks remain in that browser context; the wrapper does not add a native Google callback scheme or modify website authentication state.
 
-Expected flow:
-1. App loads https://sthapatiapp.com in the Capacitor WebView.
-2. Tap **Sign up with Google** / **Sign in with Google**.
-3. Google OAuth runs in the same WebView (same cookie jar as the website).
-4. Google returns to `https://sthapatiapp.com/api/auth/callback/google`.
-5. The existing website session, OTP, and dashboard flow continue unchanged.
-
-The iOS layer intercepts Capacitor's Safari handoff (`UIApplication.shared.open` on unknown hosts and on `window.open` / `target=_blank`). Google and Sthapati auth URLs, including `about:blank` OAuth popups, stay in the same WebView cookie jar so NextAuth can return to `https://sthapatiapp.com/api/auth/callback/google`. A `com.stahapatis.app://` URL is still accepted as a fallback and is loaded back into the WebView; it is not used as Google's OAuth redirect URI.
+Google OAuth must not be forced into the app's `WKWebView` or disguised by changing its user agent. The existing website remains responsible for signup, mobile verification, OTP, and account creation.
 
 ## Notes
 
